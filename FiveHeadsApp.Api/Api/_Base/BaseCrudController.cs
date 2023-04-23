@@ -11,7 +11,7 @@ namespace FiveHeadsApp.Api.Api._Base;
 /// Базовый контроллер выполняющий CRUD операции
 /// </summary>
 [ApiController]
-public abstract class BaseCrudController<T> : ControllerBase
+public abstract class BaseCrudController<T, TAdd, TResponse> : ControllerBase
     where T : IEntity
 {
     /// <summary>
@@ -19,10 +19,17 @@ public abstract class BaseCrudController<T> : ControllerBase
     /// </summary>
     private readonly IEfCoreRepository<T> _repository;
 
-    private readonly ILogger<BaseCrudController<T>> _logger;
-    private readonly IMapper _mapper;
+    protected readonly ILogger<BaseCrudController<T, TAdd, TResponse>> _logger;
+    protected readonly IMapper _mapper;
 
-    public BaseCrudController(IEfCoreRepository<T> repository, ILogger<BaseCrudController<T>> logger, IMapper mapper)
+    /// <summary>
+    /// Контроллер
+    /// </summary>
+    /// <param name="repository">репозиторий</param>
+    /// <param name="logger">логирование</param>
+    /// <param name="mapper">маппинг</param>
+    public BaseCrudController(IEfCoreRepository<T> repository,
+        ILogger<BaseCrudController<T, TAdd, TResponse>> logger, IMapper mapper)
     {
         _repository = repository;
         _logger = logger;
@@ -39,12 +46,13 @@ public abstract class BaseCrudController<T> : ControllerBase
     /// </summary>
     /// <returns></returns>
     [HttpGet]
-    public virtual IActionResult ListEntities()
+    [SwaggerResponse(200, "Список записей успешно получен")]
+    public virtual ActionResult<List<TResponse>> ListEntities()
     {
         var result = List.OrderBy(p => p.DateCreate)
             .ToList();
 
-        return Ok(result);
+        return Ok(_mapper.Map<List<TResponse>>(result));
     }
 
     /// <summary>
@@ -57,7 +65,8 @@ public abstract class BaseCrudController<T> : ControllerBase
     /// <param name="skip">Пропускается первых {skip} записей</param>
     /// <returns></returns>
     [HttpGet("piece")]
-    public virtual IActionResult ListEntitiesPiece(int limit = 1000, int skip = 0)
+    [SwaggerResponse(200, "Список записей успешно получен")]
+    public virtual ActionResult<List<TResponse>> ListEntitiesPiece(int limit = 1000, int skip = 0)
     {
         if (limit is < 0 or > 1000) limit = 1000;
         if (skip < 0) skip = 0;
@@ -65,6 +74,7 @@ public abstract class BaseCrudController<T> : ControllerBase
         var result = List.OrderBy(p => p.DateCreate)
             .Skip(skip)
             .Take(limit)
+            .Select(x => _mapper.Map<TResponse>(x))
             .ToList();
 
         return Ok(result);
@@ -76,14 +86,14 @@ public abstract class BaseCrudController<T> : ControllerBase
     /// <param name="id">Идентификатор записи</param>
     /// <returns>Запись</returns>
     /// <response code="404">Если записи с данным идентификатором не существует</response>   
-    [HttpGet("{guid:guid}")]
+    [HttpGet("{id:int}")]
     [SwaggerResponse(404, "Запись с таким идентификатором не существует")]
-    public virtual IActionResult Get(int id)
+    public virtual ActionResult<TResponse> Get(int id)
     {
         var entity = List.FirstOrDefault(p => p.Id == id);
 
         if (entity == null) return NotFound("Id не найден");
-        return Ok(entity);
+        return Ok(_mapper.Map<TResponse>(entity));
     }
 
     /// <summary>
@@ -97,11 +107,17 @@ public abstract class BaseCrudController<T> : ControllerBase
     [SwaggerResponse(200, "Запись успешно добавлена. Содержит информацию о добавленной записи", typeof(BaseEntity))]
     [SwaggerResponse(400, "Ошибка валидации")]
     [SwaggerResponse(500, "Ошибка при добавлении записи")]
-    public virtual IActionResult Add(T model)
+    public virtual ActionResult<TResponse> Add(TAdd model)
     {
-        _repository.Add(model);
+        var mapped = _mapper.Map<T>(model);
+        _repository.Add(mapped);
         _repository.SaveChanges();
-        return model.Id > 0 ? Ok(model) : StatusCode(500, "Произошла ошибка при добавлении записи");
+
+        var created = _repository.GetListQuery().SingleOrDefault(x => x.DateCreate == mapped.DateCreate);
+
+        return created?.Id > 0
+            ? Ok(_mapper.Map<TResponse>(created))
+            : StatusCode(500, "Произошла ошибка при добавлении записи");
     }
 
     /// <summary>
@@ -114,14 +130,21 @@ public abstract class BaseCrudController<T> : ControllerBase
     [HttpPost("range")]
     [SwaggerResponse(200, "Записи успешно добавлены. Содержит список добавленных записей", typeof(List<BaseEntity>))]
     [SwaggerResponse(500, "Произошла ошибка при добавлении записей")]
-    public virtual IActionResult AddRange(List<T> models)
+    public virtual ActionResult<List<TResponse>> AddRange(List<TAdd> models)
     {
-        _repository.AddRange(models);
-        _repository.SaveChanges();
-        if (models.All(p => p.Id > 0))
-            return Ok(models);
+        var mapped = _mapper.Map<List<T>>(models);
 
-        return StatusCode(500, "Произошла ошибка при добавлении записи");
+        _repository.AddRange(mapped);
+        _repository.SaveChanges();
+
+        var created = _repository.GetListQuery()
+            .Where(x => mapped.Select(m => m.DateCreate).Contains(x.DateCreate))
+            .ToList();
+        
+        if (created.Count == models.Count && created.All(p => p.Id > 0))
+            return Ok(_mapper.Map<List<TResponse>>(created));
+
+        return StatusCode(500, "Произошла ошибка при добавлении записей");
     }
 
     /// <summary>
@@ -134,7 +157,7 @@ public abstract class BaseCrudController<T> : ControllerBase
     [SwaggerResponse(200, "Запись успешно удалена")]
     [SwaggerResponse(404, "Запись не найдена")]
     [SwaggerResponse(500, "Произошла ошибка при удаленнии записи")]
-    public virtual IActionResult RemoveByGuid(int id)
+    public virtual IActionResult RemoveById(int id)
     {
         var entity = _repository.Get(id);
         if (entity == null) return NotFound();
@@ -142,8 +165,6 @@ public abstract class BaseCrudController<T> : ControllerBase
         _repository.Remove(id);
         _repository.SaveChanges();
         return Ok();
-
-        return StatusCode(500, "Произошла ошибка при удалении записи");
     }
 
     /// <summary>
@@ -153,19 +174,16 @@ public abstract class BaseCrudController<T> : ControllerBase
     /// <response code="500">При удалении записей произошла ошибка</response>   
     /// <returns></returns>
     [HttpDelete("range")]
-    [SwaggerResponse(200, "Записи успешно удалены. В ответе список Guid записей, которые были удалены",
-        typeof(List<Guid>))]
-    [SwaggerResponse(400, "Не указаны Guid записей, которые необходимо удалить")]
+    [SwaggerResponse(200, "Записи успешно удалены")]
+    [SwaggerResponse(400, "Не указаны Id записей, которые необходимо удалить")]
     [SwaggerResponse(500, "Произошла ошибка при удалении записей")]
-    public virtual IActionResult RemoveRangeByGuid(List<int> ids)
+    public virtual IActionResult RemoveRangeById(List<int> ids)
     {
         if (ids.Count == 0) return BadRequest();
 
         _repository.RemoveRange(ids);
         _repository.SaveChanges();
         return Ok();
-
-        return StatusCode(500, "Произошла ошибка при удалении записи");
     }
 
     /// <summary>
