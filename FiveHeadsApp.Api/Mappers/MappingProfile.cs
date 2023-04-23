@@ -1,6 +1,7 @@
 using FiveHeadsApp.Core.Dto;
 using FiveHeadsApp.Core.Model.Auth;
 using AutoMapper;
+using FiveHeadsApp.Api.Dto.Role;
 using FiveHeadsApp.Api.Dto.User;
 using FiveHeadsApp.Core.Extensions;
 
@@ -22,5 +23,6 @@ public class MappingProfile : Profile
         
         CreateMap<User, UserResponseDto>();
         CreateMap<Role, RoleResponseDto>();
+        CreateMap<RoleRequestDto, Role>();
     }
 }
