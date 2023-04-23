@@ -6,6 +6,7 @@ using FiveHeadsApp.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Authentication;
+using AutoMapper;
 using FiveHeadsApp.Core.Configurations;
 using FiveHeadsApp.Core.Exceptions;
 using Microsoft.IdentityModel.Tokens;
@@ -16,11 +17,13 @@ public class UserService
 {
     private readonly IEfCoreRepository<User> _userRepository;
     private readonly IEfCoreRepository<Role> _roleRepository;
+    private readonly IMapper _mapper;
 
-    public UserService(IEfCoreRepository<User> userRepository, IEfCoreRepository<Role> roleRepository)
+    public UserService(IEfCoreRepository<User> userRepository, IEfCoreRepository<Role> roleRepository, IMapper mapper)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
+        _mapper = mapper;
     }
 
     /// <summary>
@@ -30,7 +33,7 @@ public class UserService
     /// <returns></returns>
     /// <exception cref="EntityExistsException">если пользователь с таким email уже существует</exception>
     /// <exception cref="ApplicationException">ошибка при создании пользователя</exception>
-    public ResponseDto RegisterUser(RegisterDto registerDto)
+    public AuthResponseDto RegisterUser(RegisterDto registerDto)
     {
         if (_userRepository.Any(u => u.Email == registerDto.Email))
             throw new EntityExistsException(typeof(User), registerDto.Email);
@@ -67,11 +70,11 @@ public class UserService
             throw new ApplicationException("Error while creating a user");
         }
 
-        return new ResponseDto
+        return new AuthResponseDto
         {
             Email = user.Email,
             AccessToken = token,
-            RoleIds = new List<int> { defaultRole.Id }
+            Roles = _mapper.Map<List<RoleResponseDto>>(defaultRole)
         };
     }
 
@@ -82,7 +85,7 @@ public class UserService
     /// <returns></returns>
     /// <exception cref="EntityNotFoundException">если пользователя с таким email не существует</exception>
     /// <exception cref="AuthenticationException">неверные данные авторизации</exception>
-    public ResponseDto LoginUser(LoginDto loginDto)
+    public AuthResponseDto LoginUser(LoginDto loginDto)
     {
         var user = _userRepository.GetListQuery()
             .Include(u => u.UserRoles)
@@ -98,11 +101,11 @@ public class UserService
             throw new AuthenticationException("Wrong password");
         }
 
-        return new ResponseDto
+        return new AuthResponseDto
         {
             Email = user.Email,
             AccessToken = GetToken(loginDto.Email, loginDto.Password)!,
-            RoleIds = user.UserRoles.Select(r => r.Id).ToList()
+            Roles = user.UserRoles.Select(r => _mapper.Map<RoleResponseDto>(r)).ToList()
         };
     }
 

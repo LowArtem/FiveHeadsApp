@@ -52,7 +52,7 @@ public class AuthController : ControllerBase
     /// <returns>логин и токен пользователя</returns>
     [HttpPost("register")]
     [AllowAnonymous]
-    [SwaggerResponse(200, "Пользователь успешно зарегистрирован", typeof(ResponseDto))]
+    [SwaggerResponse(200, "Пользователь успешно зарегистрирован", typeof(AuthResponseDto))]
     [SwaggerResponse(400, "Неверный формат данных")]
     [SwaggerResponse(409, "Пользователь с таким email уже существует", typeof(string))]
     [SwaggerResponse(500, "Ошибка при регистрации пользователя", typeof(string))]
@@ -80,7 +80,7 @@ public class AuthController : ControllerBase
     /// <returns>логин и токен пользователя</returns>
     [HttpPost("login")]
     [AllowAnonymous]
-    [SwaggerResponse(200, "Пользователь успешно залогинен", typeof(ResponseDto))]
+    [SwaggerResponse(200, "Пользователь успешно залогинен", typeof(AuthResponseDto))]
     [SwaggerResponse(400, "Неверный формат данных")]
     [SwaggerResponse(404, "Пользователь с таким email не существует", typeof(string))]
     [SwaggerResponse(500, "Ошибка при логине пользователя", typeof(string))]

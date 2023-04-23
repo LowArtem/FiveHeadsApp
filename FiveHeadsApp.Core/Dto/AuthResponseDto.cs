@@ -3,7 +3,7 @@ namespace FiveHeadsApp.Core.Dto;
 /// <summary>
 /// Данные ответа на авторизацию
 /// </summary>
-public class ResponseDto
+public class AuthResponseDto
 {
     /// <summary>
     /// Почта
@@ -18,5 +18,5 @@ public class ResponseDto
     /// <summary>
     /// Список ролей пользователя
     /// </summary>
-    public List<int> RoleIds { get; set; }
+    public List<RoleResponseDto> Roles { get; set; }
 }

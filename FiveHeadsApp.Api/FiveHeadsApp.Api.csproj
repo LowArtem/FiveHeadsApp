@@ -50,7 +50,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Dto\" />
       <Folder Include="Services\" />
       <Folder Include="Validators\" />
     </ItemGroup>
