@@ -1,20 +1,15 @@
-﻿namespace FiveHeadsApp.Core.Dto;
+﻿namespace FiveHeadsApp.Api.Dto.Role;
 
 /// <summary>
-/// Информация о роли пользователя
+/// Данные для создания роли
 /// </summary>
-public class RoleResponseDto
+public class RoleRequestDto
 {
-    /// <summary>
-    /// Id
-    /// </summary>
-    public int Id { get; set; }
-    
     /// <summary>
     /// Название
     /// </summary>
     public string Name { get; set; }
-    
+
     /// <summary>
     /// Описание
     /// </summary>
