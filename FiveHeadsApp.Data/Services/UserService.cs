@@ -109,6 +109,51 @@ public class UserService
         };
     }
 
+    /// <summary>
+    /// Добавить роли пользователю
+    /// </summary>
+    /// <param name="userId">Id пользователя</param>
+    /// <param name="roleIds">Id добавляемых ролей</param>
+    /// <exception cref="ArgumentException">если не переданы роли</exception>
+    /// <exception cref="EntityNotFoundException">если роль или пользователь с переданным Id не существует</exception>
+    public void AddRoles(int userId, List<int> roleIds)
+    {
+        if (roleIds.Count == 0)
+        {
+            throw new ArgumentException("You have to provide role ids", nameof(roleIds));
+        }
+        
+        var roles = _roleRepository.GetListQuery()
+            .AsTracking()
+            .Where(x => roleIds.Contains(x.Id))
+            .ToList();
+        
+        if (roles.Count() != roleIds.Count)
+        {
+            throw new EntityNotFoundException(typeof(Role), roleIds);
+        }
+
+        var user = _userRepository.GetListQuery()
+            .AsTracking()
+            .Include(u => u.UserRoles)
+            .SingleOrDefault(u => u.Id == userId);
+
+        if (user == null)
+        {
+            throw new EntityNotFoundException(typeof(User), userId);
+        }
+
+        foreach (var r in roles)
+        {
+            if (r.Users == null)
+            {
+                r.Users = new List<User>();
+            }
+            r.Users.Add(user);
+        }
+        _roleRepository.SaveChanges();
+    }
+
     private void CreateDefaultRole()
     {
         var newRole = new Role
